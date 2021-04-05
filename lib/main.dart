@@ -12,7 +12,7 @@ void main() {
 }
 
 class LoadMoreInfiniteScrollingDemo extends StatefulWidget {
-  LoadMoreInfiniteScrollingDemo({Key key}) : super(key: key);
+  LoadMoreInfiniteScrollingDemo({Key? key}) : super(key: key);
 
   @override
   _LoadMoreInfiniteScrollingDemoState createState() =>
@@ -22,12 +22,12 @@ class LoadMoreInfiniteScrollingDemo extends StatefulWidget {
 class _LoadMoreInfiniteScrollingDemoState
     extends State<LoadMoreInfiniteScrollingDemo> {
   List<Employee> _employees = <Employee>[];
-  EmployeeDataSource _employeeDataSource;
+  late EmployeeDataSource _employeeDataSource;
 
   @override
   void initState() {
-    _addMoreRows(_employees, 20);
-    _employeeDataSource = EmployeeDataSource(employeeData: _employees);
+    _populateEmployeeData(20);
+    _employeeDataSource = EmployeeDataSource(employees: _employees);
     super.initState();
   }
 
@@ -66,17 +66,53 @@ class _LoadMoreInfiniteScrollingDemoState
           );
         },
         columns: <GridColumn>[
-          GridNumericColumn(mappingName: 'id', headerText: 'ID'),
-          GridTextColumn(mappingName: 'name', headerText: 'Name'),
           GridTextColumn(
-            mappingName: 'designation',
-            headerText: 'Designation',
-            columnWidthMode: ColumnWidthMode.cells,
-          ),
-          GridNumericColumn(mappingName: 'salary', headerText: 'Salary'),
+              columnName: 'id',
+              label: Container(
+                  padding: EdgeInsets.all(16.0),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'ID',
+                  ))),
+          GridTextColumn(
+              columnName: 'name',
+              label: Container(
+                  padding: EdgeInsets.all(8.0),
+                  alignment: Alignment.center,
+                  child: Text('Name'))),
+          GridTextColumn(
+              width: 120.0,
+              columnName: 'designation',
+              label: Container(
+                  padding: EdgeInsets.all(8.0),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Designation',
+                    overflow: TextOverflow.ellipsis,
+                  ))),
+          GridTextColumn(
+              columnName: 'salary',
+              label: Container(
+                  padding: EdgeInsets.all(8.0),
+                  alignment: Alignment.center,
+                  child: Text('Salary'))),
         ],
       ),
     );
+  }
+
+  void _populateEmployeeData(int count) {
+    final Random _random = Random();
+    int startIndex = _employees.isNotEmpty ? _employees.length : 0,
+        endIndex = startIndex + count;
+    for (int i = startIndex; i < endIndex; i++) {
+      _employees.add(Employee(
+        1000 + i,
+        _names[_random.nextInt(_names.length - 1)],
+        _designation[_random.nextInt(_designation.length - 1)],
+        10000 + _random.nextInt(10000),
+      ));
+    }
   }
 }
 
@@ -107,20 +143,6 @@ final List<String> _designation = <String>[
   'CEO'
 ];
 
-void _addMoreRows(List<Employee> employeeData, int count) {
-  final Random _random = Random();
-  int startIndex = employeeData.isNotEmpty ? employeeData.length : 0,
-      endIndex = startIndex + count;
-  for (int i = startIndex; i < endIndex; i++) {
-    employeeData.add(Employee(
-      1000 + i,
-      _names[_random.nextInt(_names.length - 1)],
-      _designation[_random.nextInt(_designation.length - 1)],
-      10000 + _random.nextInt(10000),
-    ));
-  }
-}
-
 class Employee {
   Employee(this.id, this.name, this.designation, this.salary);
 
@@ -133,40 +155,59 @@ class Employee {
   final int salary;
 }
 
-class EmployeeDataSource extends DataGridSource<Employee> {
-  EmployeeDataSource({List<Employee> employeeData}) {
-    _employeeData = employeeData;
+class EmployeeDataSource extends DataGridSource {
+  EmployeeDataSource({required List<Employee> employees}) {
+    _employeeData = employees
+        .map<DataGridRow>((e) => DataGridRow(cells: [
+              DataGridCell<int>(columnName: 'id', value: e.id),
+              DataGridCell<String>(columnName: 'name', value: e.name),
+              DataGridCell<String>(
+                  columnName: 'designation', value: e.designation),
+              DataGridCell<int>(columnName: 'salary', value: e.salary),
+            ]))
+        .toList();
   }
-  List<Employee> _employeeData;
+
+  List<DataGridRow> _employeeData = [];
 
   @override
-  List<Employee> get dataSource => _employeeData;
+  List<DataGridRow> get rows => _employeeData;
 
-  @override
-  Object getValue(Employee employee, String columnName) {
-    switch (columnName) {
-      case 'id':
-        return employee.id;
-        break;
-      case 'name':
-        return employee.name;
-        break;
-      case 'salary':
-        return employee.salary;
-        break;
-      case 'designation':
-        return employee.designation;
-        break;
-      default:
-        return ' ';
-        break;
+  void _addMoreRows(int count) {
+    final Random _random = Random();
+    int startIndex = _employeeData.isNotEmpty ? _employeeData.length : 0,
+        endIndex = startIndex + count;
+    for (int i = startIndex; i < endIndex; i++) {
+      _employeeData.add(DataGridRow(cells: [
+        DataGridCell<int>(columnName: 'id', value: 1000 + i),
+        DataGridCell<String>(
+            columnName: 'name',
+            value: _names[_random.nextInt(_names.length - 1)]),
+        DataGridCell<String>(
+            columnName: 'designation',
+            value: _designation[_random.nextInt(_designation.length - 1)]),
+        DataGridCell<int>(
+            columnName: 'salary', value: 10000 + _random.nextInt(10000)),
+      ]));
     }
   }
 
   @override
   Future<void> handleLoadMoreRows() async {
     await Future.delayed(Duration(seconds: 5));
-    _addMoreRows(_employeeData, 10);
+    _addMoreRows(10);
     notifyListeners();
+  }
+
+  @override
+  DataGridRowAdapter buildRow(DataGridRow row) {
+    return DataGridRowAdapter(
+        cells: row.getCells().map<Widget>((e) {
+      return Container(
+        alignment: Alignment.center,
+        padding: EdgeInsets.all(8.0),
+        child: Text(e.value.toString()),
+      );
+    }).toList());
   }
 }
